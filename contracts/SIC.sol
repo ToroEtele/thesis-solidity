@@ -8,7 +8,7 @@ contract SIC is Ownable {
     struct Specialization {
         string specName;
         bool available;
-        int duration;
+        int256 duration;
     }
 
     struct Student {
@@ -20,10 +20,10 @@ contract SIC is Ownable {
         bool suspended;
     }
 
-    string public _name;
-    string public _symbol;
-    string public _address;
-    uint256 public _deploymentDate;
+    string _name;
+    string _symbol;
+    string _address;
+    uint256 _deploymentDate;
 
     mapping(address => Student) studentByAddress;
     mapping(string => address) studentAddressByID;
@@ -40,19 +40,31 @@ contract SIC is Ownable {
         _deploymentDate = block.timestamp;
     }
 
+    // Students related methods:
+
     function addStudent(
         address studentAddress,
         string memory studentName,
         string memory studentCNP,
         string memory studentSpecializationName
     ) external onlyOwner {
-        require(_specializations[studentSpecializationName].available==true, "Unknown Specialisation");
-        require(studentByAddress[studentAddressByID[studentCNP]].started == 0, "Student with this CNP has already been registered");
-        require(studentByAddress[studentAddress].started == 0, "Student with this address has already been registered");
+        require(
+            _specializations[studentSpecializationName].available == true,
+            "Unknown Specialisation"
+        );
+        require(
+            studentByAddress[studentAddressByID[studentCNP]].started == 0,
+            "Student with this CNP has already been registered"
+        );
+        require(
+            studentByAddress[studentAddress].started == 0,
+            "Student with this address has already been registered"
+        );
         studentByAddress[studentAddress].started = block.timestamp;
         studentByAddress[studentAddress].studentName = studentName;
         studentByAddress[studentAddress].studentCNP = studentCNP;
-        studentByAddress[studentAddress].studentSpecializationName = studentSpecializationName;
+        studentByAddress[studentAddress]
+            .studentSpecializationName = studentSpecializationName;
         studentByAddress[studentAddress].finished = false;
         studentByAddress[studentAddress].suspended = false;
 
@@ -60,60 +72,178 @@ contract SIC is Ownable {
     }
 
     function studentFinished(string memory CNP) external onlyOwner {
-        require(studentByAddress[studentAddressByID[CNP]].started != 0, "Non-Existing Student");
-        require(studentByAddress[studentAddressByID[CNP]].suspended == false, "This student is suspended");
-        require(studentByAddress[studentAddressByID[CNP]].finished == false, "This student already finished");
+        require(
+            studentByAddress[studentAddressByID[CNP]].started != 0,
+            "Non-Existing Student"
+        );
+        require(
+            studentByAddress[studentAddressByID[CNP]].suspended == false,
+            "This student is suspended"
+        );
+        require(
+            studentByAddress[studentAddressByID[CNP]].finished == false,
+            "This student already finished"
+        );
         studentByAddress[studentAddressByID[CNP]].finished = true;
     }
 
     function studentSuspended(string memory CNP) external onlyOwner {
-        require(studentByAddress[studentAddressByID[CNP]].started != 0, "Non-Existing Student");
-        require(studentByAddress[studentAddressByID[CNP]].suspended == false, "This student is already suspended");
-        require(studentByAddress[studentAddressByID[CNP]].finished == false, "This student already finished");
+        require(
+            studentByAddress[studentAddressByID[CNP]].started != 0,
+            "Non-Existing Student"
+        );
+        require(
+            studentByAddress[studentAddressByID[CNP]].suspended == false,
+            "This student is already suspended"
+        );
+        require(
+            studentByAddress[studentAddressByID[CNP]].finished == false,
+            "This student already finished"
+        );
         studentByAddress[studentAddressByID[CNP]].suspended = true;
     }
 
-    function studentResmued(string memory CNP) external onlyOwner {
-        require(studentByAddress[studentAddressByID[CNP]].started != 0, "Non-Existing Student");
-        require(studentByAddress[studentAddressByID[CNP]].suspended == true, "This student is not suspended");
-        require(studentByAddress[studentAddressByID[CNP]].finished == false, "This student already finished");
+    function studentResumed(string memory CNP) external onlyOwner {
+        require(
+            studentByAddress[studentAddressByID[CNP]].started != 0,
+            "Non-Existing Student"
+        );
+        require(
+            studentByAddress[studentAddressByID[CNP]].suspended == true,
+            "This student is not suspended"
+        );
         studentByAddress[studentAddressByID[CNP]].suspended = false;
     }
 
     function studentChangeSpecialization(
-        string memory CNP,
+        string memory studCNP,
         string memory studentSpecializationName
     ) external onlyOwner {
-        require(_specializations[studentSpecializationName].available==true, "Unknown Specialisation");
-        studentByAddress[studentAddressByID[CNP]].studentSpecializationName = studentSpecializationName;
+        require(
+            _specializations[studentSpecializationName].available == true,
+            "Unknown Specialisation"
+        );
+        require(
+            studentByAddress[studentAddressByID[studCNP]].started != 0,
+            "Non-Existing Student"
+        );
+        studentByAddress[studentAddressByID[studCNP]]
+            .studentSpecializationName = studentSpecializationName;
     }
 
-    function addSpecialization(
-        string memory name,
-        int duration
+    function studentChangeAddress(
+        address studentOldAddress,
+        address studentNewAddress,
+        string memory studentCNP
     ) external onlyOwner {
-        require(_specializations[name].available==false, "Unknown Specialisation");
-        _specializations[name].specName=name;
-        _specializations[name].available=true;
-        _specializations[name].duration=duration;
+        require(
+            studentByAddress[studentOldAddress].started != 0,
+            "Non-Existing Student"
+        );
+        require(
+            studentAddressByID[studentCNP] == studentOldAddress,
+            "Non-Existing old address and CNP combination"
+        );
+
+        studentByAddress[studentOldAddress].suspended = true;
+        studentByAddress[studentNewAddress] = studentByAddress[
+            studentOldAddress
+        ];
+        studentAddressByID[studentCNP] = studentNewAddress;
+        studentByAddress[studentNewAddress].suspended = false;
     }
 
-    function disableSpecialization(
-        string memory name
-    ) external onlyOwner {
-        require(_specializations[name].available==true, "Unknown Specialisation");
+    // Specializations related methods:
+
+    function addSpecialization(string memory name, int256 duration)
+        external
+        onlyOwner
+    {
+        require(
+            _specializations[name].available == false,
+            "Unknown Specialisation"
+        );
+        _specializations[name].specName = name;
+        _specializations[name].available = true;
+        _specializations[name].duration = duration;
+    }
+
+    function getSpecialization(string memory specName)
+        external
+        view
+        returns (Specialization memory)
+    {
+        return _specializations[specName];
+    }
+
+    function disableSpecialization(string memory name) external onlyOwner {
+        require(
+            _specializations[name].available == true,
+            "Specialization is not available"
+        );
         _specializations[name].available = false;
     }
 
-    function verifyByCNP(
-        string memory CNP
-    ) public view returns (Student memory) {
-        return studentByAddress[studentAddressByID[CNP]];
+    function enableSpecialization(string memory name) external onlyOwner {
+        require(
+            _specializations[name].duration != 0,
+            "Non-Existent Specilaization"
+        );
+        require(
+            _specializations[name].available == false,
+            "Specilaization already enabled"
+        );
+        _specializations[name].available = true;
     }
 
-    function verifyByAddress(
-        address studentAddress
-    ) public view returns (Student memory) {
+    // Verifying students methods:
+
+    function verifyByCNP(string memory studCNP)
+        public
+        view
+        returns (Student memory)
+    {
+        require(
+            studentByAddress[studentAddressByID[studCNP]].started != 0,
+            "Non-Existing Student"
+        );
+        return studentByAddress[studentAddressByID[studCNP]];
+    }
+
+    function verifyByAddress(address studentAddress)
+        public
+        view
+        returns (Student memory)
+    {
+        require(
+            studentByAddress[studentAddress].started != 0,
+            "Non-Existing Student"
+        );
         return studentByAddress[studentAddress];
+    }
+
+    function getAddressByID(string memory studCNP)
+        public
+        view
+        returns (address)
+    {
+        require(
+            studentAddressByID[studCNP] != address(0),
+            "This CNP does not have an associated address"
+        );
+        return studentAddressByID[studCNP];
+    }
+
+    function getUniversityInfo()
+        public
+        view
+        returns (
+            string memory,
+            string memory,
+            string memory,
+            uint256
+        )
+    {
+        return (_name, _symbol, _address, _deploymentDate);
     }
 }

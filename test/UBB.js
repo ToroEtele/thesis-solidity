@@ -2,6 +2,7 @@ const { expect } = require("chai");
 const hre = require("hardhat");
 const { time, loadFixture } = require("@nomicfoundation/hardhat-network-helpers");
 
+
 describe("Faculty tests:", function(){
     async function deployContract() {
         const UBB = await ethers.getContractFactory("UBB");
@@ -183,6 +184,7 @@ describe("Student modifying tests:", function(){
         return { ubb, name, symbol, specName, studAddress, studName, studCNP };
     }
 
+    // studentFinished(studCNP) -> tests
     it('Should be possible to modify student finished state', async function() {
 
         const {ubb, studAddress, studCNP} = await loadFixture(deployContract);
@@ -194,7 +196,25 @@ describe("Student modifying tests:", function(){
         expect(res.finished).to.equals(true);
     });
 
-    it('Should be possible to modify student finished state', async function() {
+    it('Should revert if the owner wants to modify the finished state for a suspended student', async function() {
+
+        const {ubb, studCNP} = await loadFixture(deployContract);
+
+        await ubb.studentSuspended(studCNP)
+
+        await expect(ubb.studentFinished(studCNP)).to.be.revertedWith("This student is suspended");
+    });
+
+    it('Should revert if the owner is trying to change the finished state of a Non-Existing student', async function() {
+
+        const {ubb} = await loadFixture(deployContract);
+        const customCNP = 'Custom-CNP'
+
+        await expect(ubb.studentFinished(customCNP)).to.be.revertedWith("Non-Existing Student");
+    });
+
+    // studentSuspended(studCNP) -> tests
+    it('Should be possible to modify student suspended state to true', async function() {
 
         const {ubb, studAddress, studName, studCNP} = await loadFixture(deployContract);
 
@@ -203,15 +223,6 @@ describe("Student modifying tests:", function(){
         const res = await ubb.verifyByAddress(studAddress);
 
         expect(res.suspended).to.equals(true);
-    });
-
-    it('Should revert if the owner wants to modify the finished state for a suspended student', async function() {
-
-        const {ubb, studCNP} = await loadFixture(deployContract);
-
-        await ubb.studentSuspended(studCNP)
-
-        await expect(ubb.studentFinished(studCNP)).to.be.revertedWith("This student is suspended");
     });
 
     it('Should revert if the owner wants to modify the suspended state for a finished student', async function() {
@@ -223,45 +234,67 @@ describe("Student modifying tests:", function(){
         await expect(ubb.studentSuspended(studCNP)).to.be.revertedWith("This student already finished");
     });
 
-    it('Should revert if the owner is trying to change the finished state of a Non-Existing student', async function() {
-
-        const {ubb} = await loadFixture(deployContract);
-        const customCNP = 'Custom-CNP'
-
-        await expect(ubb.studentFinished(customCNP)).to.be.revertedWith("Non-Existing Student");
-    });
-
     it('Should revert if the owner is trying to change the suspended state of a Non-Existing student', async function() {
 
-        const {ubb, specName, studAddress, studName} = await loadFixture(deployContract);
+        const {ubb} = await loadFixture(deployContract);
         const customCNP = 'Custom-CNP'
 
         await expect(ubb.studentSuspended(customCNP)).to.be.revertedWith("Non-Existing Student");
     });
 
-   /* 
+    // studentResumed(studCNP) -> tests
+    it('Should be possible to modify student suspended state to false', async function() {
 
-    it('Should revert if the owner is trying to add a duplicate by address', async function() {
+        const {ubb, studAddress, studCNP} = await loadFixture(deployContract);
 
-        const {ubb, specName, studAddress, studName} = await loadFixture(deployContract);
+        await ubb.studentSuspended(studCNP);
+        await ubb.studentResumed(studCNP);
+
+        const res = await ubb.verifyByAddress(studAddress);
+
+        expect(res.suspended).to.equals(false);
+    });
+
+    it('Should revert if the owner is trying to change the suspended state of a Non-Existing student', async function() {
+
+        const {ubb} = await loadFixture(deployContract);
         const customCNP = 'Custom-CNP'
 
-        await expect(ubb.addStudent(studAddress, studName, customCNP, specName)).to.be.revertedWith("Student with this address has already been registered");
+        await expect(ubb.studentResumed(customCNP)).to.be.revertedWith("Non-Existing Student");
     });
-    
-    it('Should revert if someone else is trying to add a specialization', async function() {
 
-        const {ubb, specName, studAddress, studName, studCNP} = await loadFixture(deployContract);
-        const [owner, otherAccount] = await ethers.getSigners();
+    // studentChangeSpecialization(studCNP, studentSpecializationName)
+    it('Should be possible to modify student specialization', async function() {
 
-        await expect(ubb.connect(otherAccount).addStudent(studAddress, studName, studCNP, specName)).to.be.revertedWith("Ownable: caller is not the owner");
+        const {ubb, studAddress, studCNP} = await loadFixture(deployContract);
+
+        const newSpecialization = 'Marketing';
+
+        await ubb.addSpecialization(newSpecialization, 3);
+        await ubb.studentChangeSpecialization(studCNP, newSpecialization);
+
+        const res = await ubb.verifyByAddress(studAddress);
+
+        expect(res.studentSpecializationName).to.equals(newSpecialization);
     });
-    
-    it('Should revert if we pass a non-existing specialization for the student', async function() {
 
-        const {ubb, studAddress, studName, studCNP} = await loadFixture(deployContract);
+    it('Should revert if the owner is trying to change the specialization to a Non-Existing one', async function() {
 
-        await expect(ubb.addStudent(studAddress, studName, studCNP, "Non-existing")).to.be.revertedWith("Unknown Specialisation");
+        const {ubb, studCNP} = await loadFixture(deployContract);
+
+        const newSpecialization = 'Marketing';
+
+        await expect(ubb.studentChangeSpecialization(studCNP, newSpecialization)).to.be.revertedWith("Unknown Specialisation");
     });
-   */ 
+
+    it('Should revert if the owner is trying to change the specialization of a Non-Existing student', async function() {
+
+        const {ubb} = await loadFixture(deployContract);
+        const customCNP = 'Custom-CNP'
+        const newSpecialization = 'Marketing';
+
+        await ubb.addSpecialization(newSpecialization, 3);
+
+        await expect(ubb.studentChangeSpecialization(customCNP, newSpecialization)).to.be.revertedWith("Non-Existing Student");
+    });
 })

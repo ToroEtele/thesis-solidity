@@ -4,10 +4,10 @@
 // You can also run a script with `npx hardhat run <script>`. If you do that, Hardhat
 // will compile your contracts, add the Hardhat Runtime Environment's members to the
 // global scope, and execute the script.
-import { ethers } from "hardhat";
+const hre = require('hardhat')
 
 async function main() {
-  const UBB = await ethers.getContractFactory("UBB");
+  const UBB = await hre.ethers.getContractFactory("UBB");
   const ubb = await UBB.deploy();
 
   await ubb.deployed();
@@ -21,7 +21,7 @@ async function main() {
   await ubb.addFaculty(name, symbol);
 
   const specName = "Informatica Economica";
-  await ubb.addSpecializationWithFaculty(specName, 3, symbol);
+  await ubb.addSpecializationWithFaculty(specName, 3, "FSEGA");
 
   const studName = 'Toro Etele';
   const studAddress = '0x6e33A711D62aea5a248a7035f3Cb2509146ab293';
